@@ -1,39 +1,55 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="https://cdn.jsdelivr.net/gh/netizenorg/netnet-standard-library/build/nn.min.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/gh/netizenorg/netnet-standard-library/build/nn.min.js"></script> -->
+<script src="nn.min.js"></script>
 <script>
-  
-  function parseCSV (csvText) {
-    const lines = csvText.trim().split('\n')
-    const headers = lines.shift().split(',')
-    return lines.map(line => {
-      const values = line.split(',')
-      return headers.reduce((object, header, index) => {
-        object[header] = values[index]
-        return object
-      }, {})
-    })
-  }
+/* global nn, L */
   
   async function main () {
-    const gpsRes = await fetch('countries-gps.csv')
-    const gpsData = await gpsRes.text()
-    const countries = parseCSV(gpsData)
-    console.log(countries)
+    const countries = await nn.loadData('countries-gps.csv')
+    // console.log(countries)
+    const usage = await nn.loadData('internet-usage.csv')
+    // console.log(usage)
     
-    const netRes = await fetch('internet-usage.csv')
-    const netData = await netRes.text()
-    const nets = parseCSV(netData)
-    console.log(nets)
+    const data = {}
+    countries.forEach(c => {
+      // create new entries in "data" where the key is the
+      // country name and the values are the lat/lng coordinates
+      data[c.name] = {
+        lat: Number(c.latitude), 
+        lng: Number(c.longitude),
+        name: c.name
+      }
+    })
+    usage.forEach(u => {
+      // add the latest usage % for each country to data
+      if (!data[u.entityName]) {
+        // console.log('no GPS for', u.entityName)
+      } else {
+        if (!data[u.entityName].usage) {
+          data[u.entityName].usage = { year: Number(u.dataYear), amount: Number(u.dataValue) }
+        } else if (data[u.entityName].usage.year < Number(u.dataYear)) {
+          data[u.entityName].usage = { year: Number(u.dataYear), amount: Number(u.dataValue) }
+        }
+      }
+    })
+    // console.log(data)
     
-    const body = nn.get('body')
+    const body = nn.get('body').css({ margin: '0', height: '100vh' })
     const map = L.map(body).setView([51.505, -0.09], 3)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
     
-    countries.forEach(c => {
-      L.marker([c.latitude, c.longitude]).addTo(map)
-        .bindPopup(c.name)
-        .openPopup()
+    Object.values(data).forEach(o => {
+      // console.log(o)
+      if (!o.usage) {
+        console.log(o.name, 'missing usage data')
+      } else {
+        const msg = `As of ${o.usage.year} ${o.usage.amount}% of the population of ${o.name} used the Internet`
+        L.marker([o.lat, o.lng])
+          .addTo(map)
+          .bindPopup(msg)
+          .openPopup() 
+      }
     })
   }
  
