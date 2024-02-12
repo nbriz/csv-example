@@ -1,56 +1,63 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  
+  body {
+    margin: 0;
+    height: 100vh;
+  }
+
+</style>
+
+<body></body>
+
 <script src="https://cdn.jsdelivr.net/gh/netizenorg/netnet-standard-library/build/nn.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-/* global nn, L */
+  /* global nn, L */
   
   async function main () {
-    const countries = await nn.loadData('countries-gps.csv')
-    // console.log(countries)
-    const usage = await nn.loadData('internet-usage.csv')
-    // console.log(usage)
-    
     const data = {}
-    countries.forEach(c => {
-      // create new entries in "data" where the key is the
-      // country name and the values are the lat/lng coordinates
+    const countries = await nn.loadData('countries-gps.csv')
+    const usage = await nn.loadData('internet-usage.csv')
+    
+    countries.forEach((c) => {
       data[c.name] = {
-        lat: Number(c.latitude), 
-        lng: Number(c.longitude),
+        lat: c.latitude,
+        lng: c.longitude,
         name: c.name
       }
     })
-    usage.forEach(u => {
-      // add the latest usage % for each country to data
+    
+    usage.forEach((u) => {
       const amount = Number(u.dataValue)
       const year = Number(u.dataYear)
-      if (data[u.entityName] && !data[u.entityName].usage) { 
-        // if the country exists in data, and if it has no "usage" defined yet
-        data[u.entityName].usage = { year, amount }
-      } else if (data[u.entityName] && data[u.entityName].usage.year < year) {
-        // if the coutry exists in data, and usage data is more recent
-        data[u.entityName].usage = { year, amount }
+      const source = u.dataSource
+      const entry = data[u.entityName]
+      if (entry && !entry.year) {
+        entry.amount = Math.round(amount)
+        entry.year = year
+        entry.source = source
+      } else if (entry && entry.year < year) {
+        entry.amount = Math.round(amount)
+        entry.year = year
+        entry.source = source
       }
     })
-    // console.log(data)
     
-    const body = nn.get('body').css({ margin: '0', height: '100vh' })
-    const map = L.map(body).setView([51.505, -0.09], 3)
+    // console.debug(data)
+
+    const body = nn.get('body')
+    const map = L.map(body).setView([51.505,-0.09], 3)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
     
-    Object.values(data).forEach(o => {
-      // console.log(o)
-      if (!o.usage) {
-        console.log(o.name, 'missing usage data')
-      } else {
-        const msg = `As of ${o.usage.year} ${o.usage.amount}% of the population of ${o.name} used the Internet`
-        L.marker([o.lat, o.lng])
-          .addTo(map)
-          .bindPopup(msg)
-      }
+    Object.values(data).forEach((e) => {
+      const m = `According to ${e.source}, ${e.amount}% of ${e.name} used the Internet in ${e.year}`
+      L.marker([e.lat, e.lng])
+        .addTo(map)
+        .bindPopup(m)
     })
   }
- 
-  nn.on('load', main)
   
+  nn.on('load', main)
+
 </script>
