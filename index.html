@@ -22,14 +22,14 @@
     })
     usage.forEach(u => {
       // add the latest usage % for each country to data
-      if (!data[u.entityName]) {
-        // console.log('no GPS for', u.entityName)
-      } else {
-        if (!data[u.entityName].usage) {
-          data[u.entityName].usage = { year: Number(u.dataYear), amount: Number(u.dataValue) }
-        } else if (data[u.entityName].usage.year < Number(u.dataYear)) {
-          data[u.entityName].usage = { year: Number(u.dataYear), amount: Number(u.dataValue) }
-        }
+      const amount = Number(u.dataValue)
+      const year = Number(u.dataYear)
+      if (data[u.entityName] && !data[u.entityName].usage) { 
+        // if the country exists in data, and if it has no "usage" defined yet
+        data[u.entityName].usage = { year, amount }
+      } else if (data[u.entityName] && data[u.entityName].usage.year < year) {
+        // if the coutry exists in data, and usage data is more recent
+        data[u.entityName].usage = { year, amount }
       }
     })
     // console.log(data)
